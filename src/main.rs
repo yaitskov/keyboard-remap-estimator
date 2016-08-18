@@ -27,7 +27,9 @@ fn main() {
     println!("User pressed {} keys, but he could press {} keys",
              origin_cost, new_cost);
     if new_cost < origin_cost {
-        println!("Profit is {} keys less", origin_cost - new_cost)
+        let diff = origin_cost - new_cost;
+        let percent_diff = diff as f32 / (origin_cost as f32) * 100.0;
+        println!("Profit is {} ({:.1}%) keys less.", diff, percent_diff)
     }
 }
 
