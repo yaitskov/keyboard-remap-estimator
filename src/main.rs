@@ -1,5 +1,11 @@
 extern crate regex;
 
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate log;
+
+use log::{LogRecord, LogLevel, LogMetadata, LogLevelFilter};
 use regex::Regex;
 use std::collections::HashMap;
 use std::env;
@@ -8,15 +14,35 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-#[macro_use]
-extern crate lazy_static;
+struct SimpleLogger;
+
+impl log::Log for SimpleLogger {
+    fn enabled(&self, metadata: &LogMetadata) -> bool {
+        metadata.level() <= LogLevel::Info
+    }
+
+    fn log(&self, record: &LogRecord) {
+        if self.enabled(record.metadata()) {
+            println!("{} - {}", record.level(), record.args());
+        }
+    }
+}
 
 type CharCountMap = HashMap<char, u32>;
 
 const ORIGIN_2_KEY_CHARS: &'static str = "(){}_\"@";
 const NEW_2_KEY_CHARS: &'static str = "90[]2'";
 
+pub fn init() {
+    log::set_logger(|max_log_level| {
+        max_log_level.set(LogLevelFilter::Error);
+        Box::new(SimpleLogger)
+    }).unwrap();
+}
+
 fn main() {
+    init();
+    info!("Start up");
     let pattern = Regex::new(r"^.*[.]java$").unwrap();
     let mut count: CharCountMap = HashMap::new();
     for file_path in env::args() {
@@ -47,17 +73,20 @@ fn calc_cost(two_key_chars: &str, count: &CharCountMap) -> u32 {
 
 fn count_chars(pattern: &Regex, count: &mut CharCountMap, path: &Path) {
     if path.is_file() && pattern.is_match(path.file_name().unwrap().to_str().unwrap()) {
-        println!("Count chars in a regular file {}", path.display());
+        info!("Count chars in a regular file {}", path.display());
         let mut file = match File::open(path) {
-            Err(why) => panic!("Couldn't open file {}: {}",
-                               path.display(), why.description()),
+            Err(why) => {
+                error!("Couldn't open file {}: {}",
+                       path.display(), why.description());
+                return
+            }
             Ok(file) => file
         };
         let mut content = String::new();
         match file.read_to_string(&mut content) {
             Err(why) => {
-                println!("Couldn't read file [{}]: {}",
-                         path.display(), why.description());
+                error!("Couldn't read file [{}]: {}",
+                       path.display(), why.description());
                 return
             }
             Ok(_) => {}
@@ -71,11 +100,11 @@ fn count_chars(pattern: &Regex, count: &mut CharCountMap, path: &Path) {
             }
         }
     } else if path.is_dir() {
-        println!("Count chars in dir {}", path.display());
+        info!("Count chars in dir {}", path.display());
         for entry in path.read_dir().unwrap() {
             count_chars(pattern, count, entry.unwrap().path().as_path())
         }
     } else {
-        println!("Ignore path {} due not a regular file nor dir", path.display())
+        info!("Ignore path {} due not a regular file nor dir", path.display())
     }
 }
