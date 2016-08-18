@@ -1,0 +1,17 @@
+Statistics about projects under I worked:
+
+Java project 1
+User pressed 3040136 keys, but he could press 2916932 keys
+Profit is 123204 (4.1%) keys less.
+Java project 2
+User pressed 4722297 keys, but he could press 4541855 keys
+Profit is 180442 (3.8%) keys less.
+Java project 3
+User pressed 47485827 keys, but he could press 45524289 keys
+Profit is 1961538 (4.1%) keys less.
+
+
+Python code:
+estimate-remap -c "^.*[.]py$" -o ":{}()_@" -n ";[]90-2" .
+User pressed 8748228 keys, but he could press 8429504 keys
+Profit is 318724 (3.6%) keys less.
