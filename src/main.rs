@@ -31,10 +31,13 @@ impl log::Log for SimpleLogger {
 
 type CharCountMap = HashMap<char, u32>;
 
-const ORIGIN_2_KEY_CHARS: &'static str = "(){}_\"@";
-const NEW_2_KEY_CHARS: &'static str = "90[]2'";
+const ORIGIN_2_KEY_CHARS_DEFAULT: &'static str = "(){}_\"@";
+const NEW_2_KEY_CHARS_DEFAULT: &'static str = "90[]2'";
 const DEFAULT_FILE_NAME_FILTER: &'static str = r"^.*[.]java$";
 const PATHS: &'static str = "paths";
+const PATTERN: &'static str = "pattern";
+const ORIGIN_2_KEY_CHARS: &'static str = "origin";
+const NEW_2_KEY_CHARS: &'static str = "new";
 
 pub fn init() {
     log::set_logger(|max_log_level| {
@@ -48,31 +51,47 @@ fn main() {
     info!("Start up");
     let file_pattern_help = "RE pattern to filter files by name (default: ".to_string()
         + DEFAULT_FILE_NAME_FILTER + ")";
+    let origin_help = "origin characters which require 2 keys to type (default: ".to_string()
+        + ORIGIN_2_KEY_CHARS_DEFAULT + ")";
+    let new_help = "new characters which require 2 keys to type (default: ".to_string()
+        + NEW_2_KEY_CHARS_DEFAULT + ")";
     let params = App::new("Keyboard Remap Estimator")
         .version("1.0")
         .author("Daneel S. Yaitskov")
-        .arg(Arg::with_name("pattern")
+        .arg(Arg::with_name(PATTERN)
              .short("c")
              .long("file_pattern")
              .help(file_pattern_help.as_str())
+             .takes_value(true))
+        .arg(Arg::with_name(ORIGIN_2_KEY_CHARS)
+             .short("o")
+             .long("origin")
+             .help(origin_help.as_str())
+             .takes_value(true))
+        .arg(Arg::with_name(NEW_2_KEY_CHARS)
+             .short("n")
+             .long("new")
+             .help(new_help.as_str())
              .takes_value(true))
         .arg(Arg::with_name(PATHS)
              .index(1)
              .multiple(true))
         .get_matches();
 
-    let pattern = match Regex::new(params.value_of("pattern")
+    let pattern = match Regex::new(params.value_of(PATTERN)
                              .unwrap_or(DEFAULT_FILE_NAME_FILTER)) {
         Err(e) => panic!("file_pattern [{}] is not valid regex: {}",
-                         params.value_of("pattern").unwrap(), e),
+                         params.value_of(PATTERN).unwrap(), e),
         Ok(pattern) => pattern
     };
     let mut count: CharCountMap = HashMap::new();
     for file_path in params.values_of(PATHS).unwrap() {
         count_chars(&pattern, &mut count, Path::new(file_path));
     }
-    let origin_cost = calc_cost(ORIGIN_2_KEY_CHARS, &count);
-    let new_cost = calc_cost(NEW_2_KEY_CHARS, &count);
+    let origin_cost = calc_cost(params.value_of(ORIGIN_2_KEY_CHARS)
+                                .unwrap_or(ORIGIN_2_KEY_CHARS_DEFAULT), &count);
+    let new_cost = calc_cost(params.value_of(NEW_2_KEY_CHARS)
+                             .unwrap_or(NEW_2_KEY_CHARS_DEFAULT), &count);
     println!("User pressed {} keys, but he could press {} keys",
              origin_cost, new_cost);
     if new_cost < origin_cost {
