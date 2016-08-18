@@ -1,3 +1,4 @@
+extern crate clap;
 extern crate regex;
 
 #[macro_use]
@@ -5,10 +6,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+use clap::{Arg, App};
 use log::{LogRecord, LogLevel, LogMetadata, LogLevelFilter};
 use regex::Regex;
 use std::collections::HashMap;
-use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
@@ -32,6 +33,8 @@ type CharCountMap = HashMap<char, u32>;
 
 const ORIGIN_2_KEY_CHARS: &'static str = "(){}_\"@";
 const NEW_2_KEY_CHARS: &'static str = "90[]2'";
+const DEFAULT_FILE_NAME_FILTER: &'static str = r"^.*[.]java$";
+const PATHS: &'static str = "paths";
 
 pub fn init() {
     log::set_logger(|max_log_level| {
@@ -43,10 +46,30 @@ pub fn init() {
 fn main() {
     init();
     info!("Start up");
-    let pattern = Regex::new(r"^.*[.]java$").unwrap();
+    let file_pattern_help = "RE pattern to filter files by name (default: ".to_string()
+        + DEFAULT_FILE_NAME_FILTER + ")";
+    let params = App::new("Keyboard Remap Estimator")
+        .version("1.0")
+        .author("Daneel S. Yaitskov")
+        .arg(Arg::with_name("pattern")
+             .short("c")
+             .long("file_pattern")
+             .help(file_pattern_help.as_str())
+             .takes_value(true))
+        .arg(Arg::with_name(PATHS)
+             .index(1)
+             .multiple(true))
+        .get_matches();
+
+    let pattern = match Regex::new(params.value_of("pattern")
+                             .unwrap_or(DEFAULT_FILE_NAME_FILTER)) {
+        Err(e) => panic!("file_pattern [{}] is not valid regex: {}",
+                         params.value_of("pattern").unwrap(), e),
+        Ok(pattern) => pattern
+    };
     let mut count: CharCountMap = HashMap::new();
-    for file_path in env::args() {
-        count_chars(&pattern, &mut count, Path::new(file_path.as_str()));
+    for file_path in params.values_of(PATHS).unwrap() {
+        count_chars(&pattern, &mut count, Path::new(file_path));
     }
     let origin_cost = calc_cost(ORIGIN_2_KEY_CHARS, &count);
     let new_cost = calc_cost(NEW_2_KEY_CHARS, &count);
